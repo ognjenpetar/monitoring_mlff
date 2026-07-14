@@ -31,16 +31,18 @@ Otvori **Podešavanja** u aplikaciji i popuni:
 
 ---
 
-### 2. WhatsApp notifikacije (CallMeBot – besplatno)
+### 2. Telegram notifikacije
 
-**Kako dobiti API ključ:**
-1. Na telefonu dodaj kontakt: **+34 644 65 21 91** (ime: CallMeBot)
-2. Pošalji mu WhatsApp poruku tačno ovako:
-   ```
-   I allow callmebot to send me messages
-   ```
-3. Za par minuta dobiješ odgovor sa API ključem (npr. `123456`)
-4. Upiši taj ključ u aplikaciji u polje **CallMeBot API ključ**
+**Kako napraviti Telegram bota:**
+1. U Telegramu pronađi kontakt **@BotFather** i pošalji mu `/newbot`
+2. Prati uputstva (ime bota, username bota) — na kraju dobiješ **Bot token**
+   (izgleda kao `123456789:AABBCCddEEFF...`)
+3. Upiši taj token u aplikaciji, u Podešavanjima, polje **Bot token**
+
+**Kako dobiti svoj Chat ID:**
+1. Pošalji svom botu bilo koju poruku (npr. `/start`) u Telegramu
+2. U aplikaciji, u Podešavanjima, klikni **"Dohvati moj Chat ID"**
+3. Aplikacija automatski pronađe i doda tvoj Chat ID na listu primalaca
 
 ---
 
@@ -60,3 +62,18 @@ Prikazani su u tabeli sivom bojom.
 pip install requests beautifulsoup4
 ```
 (automatski se instaliraju pri prvom pokretanju `run.bat`)
+
+---
+
+## Cloud verzija (radi 24/7, bez potrebe da tvoj računar bude upaljen)
+
+Desktop aplikacija (`app.py`) radi samo dok je ručno pokrenuta. Za neprekidan
+monitoring (statistika, alarm na 60 min nedostupnosti, alarm za gubitak struje
+preko UPS-a, dnevni izveštaj) koristi se headless servis u `cloud verzija/`,
+pokrenut na maloj cloud VM sa statičnim javnim IP-om koji Orion mrežni tim
+whitelistuje (`mlff.sdn.rs` je dostupan samo sa whitelistovanih IP adresa).
+
+- Kreiranje besplatne VM (Oracle Cloud Free Tier), korak po korak: [`ORACLE_CLOUD_SETUP.md`](ORACLE_CLOUD_SETUP.md)
+- Deploy servisa na VM (Docker): [`cloud verzija/DEPLOY.md`](cloud%20verzija/DEPLOY.md)
+- Detaljna specifikacija svih planiranih funkcija (statistika, alarmi, Telegram
+  komande `/live` `/stat` `/juce`, dnevni izveštaj): [`docs/superpowers/specs/2026-07-14-mlff-monitoring-v2-design.md`](docs/superpowers/specs/2026-07-14-mlff-monitoring-v2-design.md)

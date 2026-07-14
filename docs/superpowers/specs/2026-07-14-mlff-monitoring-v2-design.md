@@ -22,7 +22,7 @@ Statistika, pragovi alarma i dnevni izveštaj imaju smisla samo ako aplikacija r
 4. Poseban alarm za UPS uređaje (gubitak struje na lokaciji), sa kraćim pragom (3 min) i ponavljanjem na 2h.
 5. Telegram komande na zahtev: `/live`, `/stat`, `/juce`.
 6. Automatski dnevni izveštaj u 09:01 (Europe/Belgrade) za prethodni dan.
-7. Deployment plan: Oracle Cloud Free Tier VM + VPN pristup internoj Orion mreži + Docker Compose.
+7. Deployment plan: Oracle Cloud Free Tier VM sa rezervisanim javnim IP-om, whitelistovanim od strane Orion mrežnog administratora + Docker Compose.
 
 ## Van scope-a
 
@@ -120,26 +120,28 @@ Nova pozadinska petlja (thread ili provera unutar glavne petlje na svaki ciklus)
 
 ### Infrastruktura
 - **Oracle Cloud Free Tier**, Always Free VM (Ampere A1, Ubuntu 22.04). Kartica se unosi samo radi verifikacije identiteta; Always Free resursi se ne naplaćuju.
+- Detaljno, korak-po-korak uputstvo za kreiranje VM-a: [`ORACLE_CLOUD_SETUP.md`](../../../ORACLE_CLOUD_SETUP.md).
 
-### VPN pristup internoj mreži
-- Interna stranica `mlff.sdn.rs` dostupna je samo kroz Orion VPN (Palo Alto **GlobalProtect**, portal `gp.oriontelekom.rs`, potvrđeno od korisnika — samo korisničko ime + lozinka, **bez MFA**).
-- Klijent: `openconnect --protocol=gp gp.oriontelekom.rs --user=<nalog>`, lozinka prosleđena preko stdin-a (ne kao argument u plain textu).
-- Radi kao poseban Docker kontejner (`vpn`) sa `--cap-add=NET_ADMIN --device=/dev/net/tun`, restart policy `unless-stopped` + health-check koji restartuje kontejner ako tunel padne.
-- `monitor` kontejner (servis) koristi `network_mode: "service:vpn"` da sav njegov saobraćaj ka `mlff.sdn.rs` ide kroz tunel; Telegram (`api.telegram.org`) i SMTP (`smtp.gmail.com`) idu direktno preko normalnog interneta VM-a (isti network namespace, samo različita destinacija — VPN ruta pokriva samo internu Orion podmrežu).
-- Preporuka (ne blokira implementaciju): zatražiti od kolege poseban service nalog za VPN (ne lični `ognjen.petar` nalog), radi razdvajanja od korisnikove svakodnevne sesije i lakšeg upravljanja pristupom. Ako nije praktično, koristi se postojeći lični nalog.
-- Napomena: GlobalProtect sesija (sa slike) ima "Login Lifetime" ~29 dana. Health-check/restart mehanizam za `vpn` kontejner treba da hvata i slučaj isteka sesije (openconnect izlazi sa greškom → restart policy pokušava ponovo → ako je istekla sesija, treba alarm/log da neko ručno obnovi ako je potrebna ponovna autentifikacija).
+### Pristup internoj mreži — IP whitelisting (izmena od 2026-07-14)
+Prvobitni plan je predviđao VPN tunel (Palo Alto GlobalProtect) sa VM-a ka internoj Orion mreži. Mrežni administrator je to odbio ("neće da pravi VPN za ovo") i umesto toga predložio jednostavnije rešenje: **whitelistuje javni IP Oracle VM-a** na firewall-u, tako da taj konkretan IP dobije direktan HTTPS pristup ka `mlff.sdn.rs`, bez ikakvog VPN klijenta/tunela.
+
+Posledice ove izmene:
+- **Nema VPN kontejnera** — ceo `openconnect`/GlobalProtect deo iz prethodne verzije spec-a otpada. `docker-compose.yml` ostaje jednostavan, samo jedan servis (`mlff-monitor`).
+- **Javni IP mora biti statičan/rezervisan.** Oracle Cloud po defaultu dodeljuje efemeran javni IP koji se menja pri restartu instance — to bi pokvarilo whitelisting svaki put kad se VM restartuje. Zato je obavezan korak u Oracle setupu: rezervisati **Reserved Public IP** (besplatno u okviru Always Free) i dodeliti ga instanci, pre nego što se IP prosledi administratoru na whitelisting.
+- **Nema rizika od isteka VPN sesije** (GlobalProtect "Login Lifetime" napomena iz prethodne verzije više nije relevantna) — whitelisting je statična firewall pravila, ne sesija koja ističe.
+- **Manja bezbednosna površina** — nema kredencijala za VPN nalog koje treba čuvati na VM-u; jedini "kredencijal" je sâm IP, koji admin može ukloniti sa whitelist-e u bilo kom trenutku ako zatreba.
+- **Šta admin treba da uradi:** whitelistuje jedan (1) javni IPv4 na firewall-u/reverse-proxy-ju ispred `mlff.sdn.rs`, dozvoljavajući outbound-inbound HTTPS (port 443) sa tog IP-a. Ništa se ne otvara sa Orion strane ka VM-u — VM samo inicira konekcije (isti smer kao i pre, samo bez VPN enkapsulacije).
 
 ### Docker Compose (u `cloud verzija/`)
-- `vpn` servis (openconnect image ili custom Dockerfile).
-- `monitor` servis (postojeći `service.py` + nove funkcije), `network_mode: "service:vpn"`, volume `./data:/app/data` za `stats.db`.
-- `.env` fajl (van git-a, `.gitignore` već postoji u `cloud verzija/`) sa SMTP/Telegram/VPN kredencijalima.
+- Jedan servis: `mlff-monitor` (postojeći `service.py` + nove funkcije iz ovog spec-a), volume `./data:/app/data` za `stats.db`.
+- `.env` fajl (van git-a, `.gitignore` već postoji u `cloud verzija/`) sa SMTP/Telegram kredencijalima.
 
 ### Update procedura
-Ista kao postojeća u `DEPLOY.md` (`docker compose down && docker compose build && docker compose up -d`), dopunjena napomenom o `vpn` servisu.
+Nepromenjeno u odnosu na postojeći `DEPLOY.md`: `docker compose down && docker compose build && docker compose up -d`.
 
 ## Testiranje
 
 - Statistika: unit testovi za `stats.py` (upis perioda, `day_stats()` sa periodima koji seku granicu dana, isključeni uređaji se ne upisuju).
 - Alarm pragovi: testovi za logiku "prvi put posle praga" i "ponavljanje posle N minuta", uključujući reset kad uređaj ode UP.
 - Telegram komande: test parsiranja `getUpdates` odgovora i filtriranja po `chat_id`.
-- End-to-end na VM-u: ručna provera da `/live`, `/stat`, `/juce` rade posle deploya, i da VPN tunel stvarno rutira ka `mlff.sdn.rs` (curl iz `monitor` kontejnera).
+- End-to-end na VM-u: ručna provera da `/live`, `/stat`, `/juce` rade posle deploya, i da je `mlff.sdn.rs` stvarno dostupan sa VM-a (`curl https://mlff.sdn.rs` direktno, bez VPN-a) nakon što admin potvrdi whitelisting.

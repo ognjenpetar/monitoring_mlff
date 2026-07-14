@@ -1,13 +1,15 @@
-# MLFF Monitor – Cloud verzija (lokalni server)
+# MLFF Monitor – Cloud verzija
 
-Servis mora biti na **istoj lokalnoj mreži** kao i `ot.sdn.rs/portali/`
-jer je taj URL dostupan samo interno.
+`mlff.sdn.rs` je dostupan samo sa whitelistovanih javnih IP adresa (interni Orion
+firewall). Server na kom radi ovaj servis mora imati **statičan javni IP koji je
+whitelistovan** od strane Orion mrežnog administratora — detaljno uputstvo za
+kreiranje takvog servera na Oracle Cloud Free Tier: [`../ORACLE_CLOUD_SETUP.md`](../ORACLE_CLOUD_SETUP.md).
 
 ## Pokretanje
 
 ### Preduslovi
 - Docker i Docker Compose instalirani na serveru
-- Server je na istoj LAN/VPN mreži kao monitoring URL
+- Server ima statičan javni IP, whitelistovan za pristup `mlff.sdn.rs`
 
 ### Koraci
 
@@ -38,13 +40,13 @@ docker compose up -d
 
 ## Gde može da radi
 
+Bilo koji server sa **statičnim javnim IP-om** koji Orion whitelistuje. Preporučeno:
+
 | Opcija | Šta treba |
 |--------|-----------|
-| Synology / QNAP NAS | Container Manager (Docker) |
-| Raspberry Pi 4 | `apt install docker.io docker-compose` |
-| Stari PC/laptop (Linux) | `apt install docker.io docker-compose` |
-| Proxmox VM | Linux VM + Docker |
-| Windows Server / PC | Docker Desktop |
+| **Oracle Cloud Free Tier VM** (preporučeno) | Besplatno zauvek, statičan IP — vidi [`ORACLE_CLOUD_SETUP.md`](../ORACLE_CLOUD_SETUP.md) |
+| Bilo koja druga cloud VM sa javnim IP-om | Docker + statičan/rezervisan javni IP |
+| Server već u Orion internoj mreži (NAS, Raspberry Pi, Proxmox VM) | Docker — nije potreban whitelisting jer je već interno, ali zahteva da neko drži tu mašinu upaljenu 24/7 |
 
 ## Logovi
 

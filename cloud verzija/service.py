@@ -32,7 +32,7 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-MONITOR_URL = os.environ.get("MONITOR_URL", "https://ot.sdn.rs/portali/")
+MONITOR_URL = os.environ.get("MONITOR_URL", "https://mlff.sdn.rs")
 CHECK_INTERVAL_SEC = int(os.environ.get("CHECK_INTERVAL_SEC", "60"))
 
 EXCLUDED_HOSTNAMES = {"SCPA1046-L-UPS", "SCPA1046-L-IOL"}
