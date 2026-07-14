@@ -3,6 +3,10 @@ __pycache__/
 .env
 .venv/
 
+# SSH private keys (Oracle Cloud etc.) — never commit
+*.key
+*.pem
+
 # Contains live SMTP/Telegram credentials
 config.json
 stabilna verzija/config.json
