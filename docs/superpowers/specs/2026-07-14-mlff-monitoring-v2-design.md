@@ -120,7 +120,7 @@ Nova pozadinska petlja (thread ili provera unutar glavne petlje na svaki ciklus)
 
 ### Infrastruktura
 - **Oracle Cloud Free Tier**, Always Free VM (Ampere A1, Ubuntu 22.04). Kartica se unosi samo radi verifikacije identiteta; Always Free resursi se ne naplaćuju.
-- Detaljno, korak-po-korak uputstvo za kreiranje VM-a: [`ORACLE_CLOUD_SETUP.md`](../../../ORACLE_CLOUD_SETUP.md).
+- Detaljno, korak-po-korak uputstvo za kreiranje VM-a: [`ORACLE_CLOUD_SETUP.md`](../../../ORACLE_CLOUD_SETUP.md), i za deploy aplikacije na nju: [`DEPLOY.md`](../../../DEPLOY.md).
 
 ### Pristup internoj mreži — IP whitelisting (izmena od 2026-07-14)
 Prvobitni plan je predviđao VPN tunel (Palo Alto GlobalProtect) sa VM-a ka internoj Orion mreži. Mrežni administrator je to odbio ("neće da pravi VPN za ovo") i umesto toga predložio jednostavnije rešenje: **whitelistuje javni IP Oracle VM-a** na firewall-u, tako da taj konkretan IP dobije direktan HTTPS pristup ka `mlff.sdn.rs`, bez ikakvog VPN klijenta/tunela.

@@ -1,57 +1,25 @@
 # MLFF Monitor – Cloud verzija
 
-`mlff.sdn.rs` je dostupan samo sa whitelistovanih javnih IP adresa (interni Orion
-firewall). Server na kom radi ovaj servis mora imati **statičan javni IP koji je
-whitelistovan** od strane Orion mrežnog administratora — detaljno uputstvo za
-kreiranje takvog servera na Oracle Cloud Free Tier: [`../ORACLE_CLOUD_SETUP.md`](../ORACLE_CLOUD_SETUP.md).
+Kompletno, korak-po-korak uputstvo za postavljanje ovog servisa (kreiranje VM-a,
+rezervacija javnog IP-a, instalacija Docker-a, deploy, predaja IP-a mrežnom
+administratoru na whitelisting) nalazi se u:
 
-## Pokretanje
+1. [`../ORACLE_CLOUD_SETUP.md`](../ORACLE_CLOUD_SETUP.md) — kreiranje besplatne VM na Oracle Cloud
+2. [`../DEPLOY.md`](../DEPLOY.md) — sve od trenutka kad je VM spremna do pokrenutog servisa
 
-### Preduslovi
-- Docker i Docker Compose instalirani na serveru
-- Server ima statičan javni IP, whitelistovan za pristup `mlff.sdn.rs`
-
-### Koraci
+## Brzi podsetnik komandi (kad je već sve podešeno)
 
 ```bash
-# 1. Kopiraj .env.example u .env i popuni vrednosti
-cp .env.example .env
-nano .env
-
-# 2. Pokreni
-docker compose up -d
-
-# 3. Provjeri logove
-docker compose logs -f
-```
-
-### Zaustavljanje / restart
-```bash
+# Update aplikacije
+git pull
 docker compose down
-docker compose restart
-```
+docker compose up -d --build
 
-### Update (kada promeniš kod)
-```bash
-docker compose down
-docker compose build
-docker compose up -d
-```
-
-## Gde može da radi
-
-Bilo koji server sa **statičnim javnim IP-om** koji Orion whitelistuje. Preporučeno:
-
-| Opcija | Šta treba |
-|--------|-----------|
-| **Oracle Cloud Free Tier VM** (preporučeno) | Besplatno zauvek, statičan IP — vidi [`ORACLE_CLOUD_SETUP.md`](../ORACLE_CLOUD_SETUP.md) |
-| Bilo koja druga cloud VM sa javnim IP-om | Docker + statičan/rezervisan javni IP |
-| Server već u Orion internoj mreži (NAS, Raspberry Pi, Proxmox VM) | Docker — nije potreban whitelisting jer je već interno, ali zahteva da neko drži tu mašinu upaljenu 24/7 |
-
-## Logovi
-
-Logovi se čuvaju u Docker JSON logu (max 10 MB × 3 fajla).
-Pregledaj ih sa:
-```bash
+# Status / logovi
+docker compose ps
 docker compose logs --tail=100 -f
+
+# Restart / stop
+docker compose restart
+docker compose down
 ```
