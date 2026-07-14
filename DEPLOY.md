@@ -18,13 +18,14 @@ se **nikad ne menja**.
    (Ako ne vidiš "IP Management" direktno, klikni prvo "Networking" u glavnom meniju,
    pa potraži "IP Management" u pod-meniju levo)
 
-2. Klikni dugme **Create Reserved Public IP** (gore desno)
+2. Klikni dugme **Reserve public IP address** (gore levo; Oracle povremeno menja
+   naziv ovog dugmeta — nekad piše i "Create Reserved Public IP", isto je)
 
 3. Popuni formu:
    - **Name**: `mlff-monitor-ip`
    - **Compartment**: ostavi default (`ognjenpetar (root)`)
 
-4. Klikni **Create Reserved Public IP**
+4. Klikni dugme za potvrdu (Reserve / Create — kako god piše u tvojoj verziji konzole)
 
 5. Sačekaj par sekundi da se kreira (status će pokazati "Available")
 
