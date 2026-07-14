@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+
+# Contains live SMTP/Telegram credentials
+config.json
+stabilna verzija/config.json
+
+# Claude Code local settings
+.claude/settings.local.json
