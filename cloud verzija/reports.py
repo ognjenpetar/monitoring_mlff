@@ -8,8 +8,8 @@ from scraper import Device
 def format_duration(seconds: float) -> str:
     """Format a number of seconds as a short human-readable duration.
 
-    Uses the two largest non-zero units (e.g. "1h 1m", "1d 1h"), falling
-    back to seconds alone when the duration is under a minute.
+    Shows all non-zero units (d/h/m) in descending order, falling back to
+    seconds alone when d/h/m are all zero.
     """
     seconds = int(seconds)
     days, rem = divmod(seconds, 86400)
@@ -48,10 +48,14 @@ def format_live_status(devices: List[Device]) -> str:
 
 
 def format_day_report(title: str, day_stats_by_host: Dict[str, dict]) -> str:
-    """Format a daily/weekly summary report from per-host downtime stats.
+    """Format a summary report for a single 24-hour period from per-host downtime stats.
 
     `day_stats_by_host` maps hostname -> {"downtime_seconds": float, "outage_count": int}
-    covering a single day's worth of monitoring per host.
+    covering exactly one calendar day per host. Uptime percentages are computed
+    against a fixed 86400-second denominator, so this function must NOT be
+    reused as-is for multi-day (e.g. weekly) stats produced by
+    `stats.day_stats` with a longer period — doing so would silently produce
+    wrong uptime percentages.
     """
     if not day_stats_by_host:
         return f"=== {title} ===\nNema podataka za ovaj period."
