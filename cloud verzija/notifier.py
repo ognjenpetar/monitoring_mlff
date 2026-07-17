@@ -50,9 +50,13 @@ def send_telegram(bot_token: str, chat_id: str, message: str) -> None:
         raise RuntimeError(result.get("description", "Telegram API error"))
 
 
-def get_telegram_updates(bot_token: str) -> list:
-    """Return recent updates (messages sent to the bot) – used to find chat_id."""
+def get_telegram_updates(bot_token: str, offset: int = None) -> list:
+    """Return recent updates (messages sent to the bot) – used to find chat_id
+    and to poll for on-demand commands. Pass `offset` (last update_id + 1) to
+    avoid reprocessing already-seen messages."""
     url = f"https://api.telegram.org/bot{bot_token}/getUpdates"
+    if offset is not None:
+        url += f"?offset={offset}"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=15) as resp:
         result = json.loads(resp.read().decode("utf-8"))
