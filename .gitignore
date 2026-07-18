@@ -4,6 +4,10 @@ __pycache__/
 .venv/
 .worktrees/
 
+# Local SQLite stats DB (from running service.py outside Docker)
+*.db
+data/
+
 # SSH private keys (Oracle Cloud etc.) — never commit
 *.key
 *.pem
