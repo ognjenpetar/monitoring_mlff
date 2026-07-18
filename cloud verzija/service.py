@@ -138,6 +138,7 @@ def run_once(
         state.down_since.setdefault(d.key, now_utc)
     for d in active:
         if d.is_up and d.key in state.down_since:
+            del state.down_since[d.key]
             state.threshold_tracker.reset(d.key)
             state.ups_tracker.reset(d.key)
 

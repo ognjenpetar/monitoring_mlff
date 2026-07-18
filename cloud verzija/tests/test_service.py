@@ -113,8 +113,13 @@ def test_run_once_resets_alert_tracking_when_device_recovers(db_path):
     t2 = t1 + timedelta(minutes=1)
     run_once(base_cfg(), db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "UP")], t2)
 
-    t3 = t2 + timedelta(minutes=61)
-    notes = run_once(base_cfg(), db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "DOWN")], t3)
+    # New outage starts at t3; down_since resets on recovery, so the 60-min
+    # threshold must elapse again counting from t3, not from the original t0 outage.
+    t3 = t2 + timedelta(minutes=1)
+    run_once(base_cfg(), db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "DOWN")], t3)
+
+    t4 = t3 + timedelta(minutes=61)
+    notes = run_once(base_cfg(), db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "DOWN")], t4)
     assert len([n for n in notes if "60 min" in n.text]) == 1
 
 
