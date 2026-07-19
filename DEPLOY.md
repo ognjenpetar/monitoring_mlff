@@ -87,8 +87,9 @@ si sada "unutar" VM-a i sve dalje komande kucaš tu (na VM-u), ne na svom račun
 Kucaj redom (svaku liniju posebno, Enter posle svake), **na VM-u** (u SSH sesiji):
 
 ```bash
-sudo dnf install -y git
-curl -fsSL https://get.docker.com | sudo sh
+sudo dnf install -y dnf-plugins-core git
+sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 sudo systemctl enable --now docker
 sudo usermod -aG docker $USER
 ```
