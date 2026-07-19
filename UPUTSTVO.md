@@ -77,3 +77,19 @@ whitelistuje (`mlff.sdn.rs` je dostupan samo sa whitelistovanih IP adresa).
 - Deploy servisa na VM (rezervacija IP-a, SSH, Docker, pokretanje): [`DEPLOY.md`](DEPLOY.md)
 - Detaljna specifikacija svih planiranih funkcija (statistika, alarmi, Telegram
   komande `/live` `/stat` `/juce`, dnevni izveštaj): [`docs/superpowers/specs/2026-07-14-mlff-monitoring-v2-design.md`](docs/superpowers/specs/2026-07-14-mlff-monitoring-v2-design.md)
+
+---
+
+### Telegram komande (cloud verzija)
+
+Kad je cloud servis pokrenut, možeš mu poslati ove komande direktno u Telegramu
+(samo sa chat ID-a koji je na listi primalaca u `.env`):
+
+| Komanda | Šta vraća |
+|---|---|
+| `/live` | Trenutni status svih uređaja (koliko je UP/DOWN, lista DOWN uređaja) |
+| `/stat` | Statistika od ponoći do sada (današnji dan) |
+| `/juce` | Statistika za ceo prethodni dan |
+
+Automatski dnevni izveštaj (isti sadržaj kao `/juce`) stiže svako jutro u 09:01
+bez da išta tražiš.

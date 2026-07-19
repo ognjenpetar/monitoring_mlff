@@ -38,7 +38,7 @@ SSH, instalacija Docker-a, deploy aplikacije, predaja IP-a administratoru).
    |---|---|
    | Name | `mlff-monitor` |
    | Placement | ostavi default (Availability Domain koji ti ponudi) |
-   | Image and shape → Image | **Ubuntu** (22.04 ili 20.04 — obe rade identično za ovu aplikaciju) |
+   | Image and shape → Image | **Ubuntu** or **Oracle Linux** (both work — this guide's DEPLOY.md now covers both; note which one you picked, since the SSH username differs: `ubuntu` for Ubuntu, `opc` for Oracle Linux) |
    | Image and shape → Shape | Klikni "Change shape" → **Ampere** → **VM.Standard.A1.Flex** → podesi **1 OCPU / 6 GB RAM** (u okviru Always Free limita od 4 OCPU/24GB ukupno, ovo je i više nego dovoljno za ovu aplikaciju) |
 
    > Ako Ampere A1 shape nije dostupan u tvom regionu (ponekad piše "Out of capacity"),
