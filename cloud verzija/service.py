@@ -188,6 +188,8 @@ def run_once(
 
     report_time = datetime.strptime(cfg["daily_report_time"], "%H:%M").time()
     now_local = now_utc.replace(tzinfo=timezone.utc).astimezone(tz)
+    # Skip on the very first cycle after startup so a restart landing past
+    # report_time doesn't fire an empty "yesterday" report before any data exists.
     if not state.first_run and now_local.time() >= report_time:
         today_local = now_local.date()
         if state.last_report_date != today_local and not stats.was_report_sent(db_path, today_local):
