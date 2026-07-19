@@ -1,7 +1,7 @@
 """
 MLFF Monitoring – Desktop aplikacija
-Prati status uređaja na https://ot.sdn.rs/portali/
-i šalje obaveštenja na email i WhatsApp pri promeni statusa.
+Prati status uređaja na https://mlff.sdn.rs
+i šalje obaveštenja na email i Telegram pri promeni statusa.
 """
 
 import json

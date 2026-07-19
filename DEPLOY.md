@@ -137,27 +137,27 @@ cp .env.example .env
 nano .env
 ```
 
-Otvoriće se tekst editor unutar terminala. Uredi vrednosti (koristi strelice na
-tastaturi da se pomeraš, ne miš):
+Otvoriće se tekst editor unutar terminala. Uredi bar ove vrednosti (koristi
+strelice na tastaturi da se pomeraš, ne miš) — SMTP/Telegram deo:
 
 ```
-MONITOR_URL=https://mlff.sdn.rs
-CHECK_INTERVAL_SEC=60
-
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
 SMTP_USER=tvoj.email@gmail.com
 SMTP_PASSWORD=tvoj_app_password
 EMAIL_RECIPIENTS=ognjen.petar.todorovic@oriontelekom.rs
-NOTIFY_EMAIL=true
 
 TELEGRAM_BOT_TOKEN=tvoj_telegram_bot_token
 TELEGRAM_CHAT_IDS=tvoj_chat_id
-NOTIFY_TELEGRAM=true
 ```
 
 (iste vrednosti kao u desktop aplikaciji — SMTP App Password i Telegram bot token
 iz `UPUTSTVO.md`)
+
+`.env.example` već sadrži i podešavanja za statistiku/alarme (v2) sa razumnim
+default vrednostima — `NOTIFY_THRESHOLD_ALERT`, `NOTIFY_UPS_ALERT`,
+`DOWN_THRESHOLD_MINUTES=60`, `UPS_ALERT_DELAY_MINUTES=3`,
+`ALERT_REPEAT_MINUTES=120`, `DAILY_REPORT_TIME=09:01`,
+`TIMEZONE=Europe/Belgrade`, `STATS_DB_PATH=data/stats.db`. Ne moraš ih dirati
+osim ako želiš drugačije pragove/vreme izveštaja od podrazumevanih.
 
 Kad završiš uređivanje:
 - `Ctrl + O` pa **Enter** → snima fajl
