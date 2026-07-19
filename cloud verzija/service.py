@@ -186,8 +186,9 @@ def run_once(
                 notifications.append(Notification("telegram", cid, text))
             state.ups_tracker.record_sent(d.key, now_utc)
 
+    report_time = datetime.strptime(cfg["daily_report_time"], "%H:%M").time()
     now_local = now_utc.replace(tzinfo=timezone.utc).astimezone(tz)
-    if now_local.strftime("%H:%M") == cfg["daily_report_time"]:
+    if not state.first_run and now_local.time() >= report_time:
         today_local = now_local.date()
         if state.last_report_date != today_local and not stats.was_report_sent(db_path, today_local):
             yesterday_local = today_local - timedelta(days=1)

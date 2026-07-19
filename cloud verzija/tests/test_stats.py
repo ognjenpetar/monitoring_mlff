@@ -69,6 +69,30 @@ def test_mark_and_check_report_sent(db_path):
     assert stats.was_report_sent(db_path, d) is True
 
 
+def test_day_stats_attributes_outage_count_to_the_day_it_started_not_every_overlapping_day(db_path):
+    # Outage starts 23:50 on day 1, ends 00:10 on day 2 (crosses midnight).
+    t0 = datetime(2026, 7, 13, 23, 50, 0)
+    stats.open_initial_period(db_path, "HOST-E", "DOWN", t0)
+    t1 = datetime(2026, 7, 14, 0, 10, 0)
+    stats.record_transition(db_path, "HOST-E", "UP", t1)
+
+    day1_start, day1_end = stats.local_day_bounds(date(2026, 7, 13), ZoneInfo("UTC"))
+    day2_start, day2_end = stats.local_day_bounds(date(2026, 7, 14), ZoneInfo("UTC"))
+    now = datetime(2026, 7, 14, 12, 0, 0)
+
+    day1_result = stats.day_stats(db_path, day1_start, day1_end, now)
+    day2_result = stats.day_stats(db_path, day2_start, day2_end, now)
+
+    # The outage started on day 1, so it should count as 1 outage there...
+    assert day1_result["HOST-E"]["outage_count"] == 1
+    assert day1_result["HOST-E"]["downtime_seconds"] == pytest.approx(600, abs=1)  # 10 min (23:50-24:00)
+
+    # ...and 0 additional outages on day 2, even though 10 minutes of downtime
+    # (00:00-00:10) genuinely occurred on day 2 and must still be counted in duration.
+    assert day2_result["HOST-E"]["outage_count"] == 0
+    assert day2_result["HOST-E"]["downtime_seconds"] == pytest.approx(600, abs=1)  # 10 min (00:00-00:10)
+
+
 def test_open_initial_period_is_noop_if_periods_already_exist(db_path):
     t0 = datetime(2026, 7, 13, 10, 0, 0)
     stats.open_initial_period(db_path, "HOST-D", "UP", t0)

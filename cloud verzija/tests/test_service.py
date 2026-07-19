@@ -55,12 +55,15 @@ def test_run_once_ignores_excluded_hostnames_entirely(db_path):
 
 
 def test_run_once_sends_per_event_notification_on_status_change(db_path):
+    # daily_report_time is pushed past t0/t1 so this test (unrelated to daily
+    # reports) doesn't incidentally also trigger the >= catch-up report path.
+    cfg = base_cfg(daily_report_time="23:59")
     state = ServiceState()
     t0 = datetime(2026, 7, 13, 10, 0, 0)
-    run_once(base_cfg(), db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "UP")], t0)
+    run_once(cfg, db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "UP")], t0)
 
     t1 = t0 + timedelta(minutes=1)
-    notes = run_once(base_cfg(), db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "DOWN")], t1)
+    notes = run_once(cfg, db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "DOWN")], t1)
 
     telegram_notes = [n for n in notes if n.channel == "telegram"]
     assert len(telegram_notes) == 1
@@ -144,6 +147,21 @@ def test_run_once_does_not_send_daily_report_twice_same_day(db_path):
     notes2 = run_once(base_cfg(), db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "UP")], t1)
 
     assert [n for n in notes2 if "Dnevni izvestaj" in n.text] == []
+
+
+def test_run_once_sends_daily_report_even_if_exact_minute_is_missed(db_path):
+    """A transient failure during the exact report minute shouldn't
+    permanently skip the day's report - the next cycle should catch up."""
+    state = ServiceState()
+    t0 = datetime(2026, 7, 13, 0, 0, 0)
+    run_once(base_cfg(), db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "UP")], t0)
+
+    # Poll cycle lands at 09:03, three minutes AFTER the configured 09:01 report
+    # time - simulating that the 09:01 cycle itself was skipped (e.g. fetch failed).
+    t1 = datetime(2026, 7, 14, 9, 3, 0)
+    notes = run_once(base_cfg(), db_path, ZoneInfo("UTC"), state, [make_device("HOST-A", "10.0.0.1", "UP")], t1)
+
+    assert len([n for n in notes if "Dnevni izvestaj" in n.text]) == 1
 
 
 def test_get_config_reads_new_env_vars(monkeypatch):

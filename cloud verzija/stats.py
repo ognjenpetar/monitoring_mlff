@@ -88,7 +88,8 @@ def day_stats(
         entry = result.setdefault(hostname, {"downtime_seconds": 0.0, "outage_count": 0})
         if row["status"] == "DOWN":
             entry["downtime_seconds"] += (eff_end - eff_start).total_seconds()
-            entry["outage_count"] += 1
+            if start >= period_start:
+                entry["outage_count"] += 1
     return result
 
 
