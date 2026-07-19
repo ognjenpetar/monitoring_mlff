@@ -59,7 +59,7 @@ Otvori **PowerShell** na svom računaru i pokreni (zameni `<JAVNI_IP>` sa IP-om 
 Koraka 1):
 
 ```powershell
-ssh -i "C:\Users\ognjen.petar\.ssh\mlff-monitor-key.key" ubuntu@<JAVNI_IP>
+ssh -i "C:\Users\ognjen.petar\.ssh\mlff-monitor-key.key" opc@<JAVNI_IP>
 ```
 
 - Prvi put će te pitati da potvrdiš "fingerprint" konekcije — ukucaj `yes` i Enter.
@@ -69,8 +69,16 @@ ssh -i "C:\Users\ognjen.petar\.ssh\mlff-monitor-key.key" ubuntu@<JAVNI_IP>
   icacls "C:\Users\ognjen.petar\.ssh\mlff-monitor-key.key" /grant:r "$($env:USERNAME):(R)"
   ```
 
-Kada uspešno uđeš, videćeš prompt nalik na `ubuntu@instance-...:~$` — to znači da
+Kada uspešno uđeš, videćeš prompt nalik na `opc@instance-...:~$` — to znači da
 si sada "unutar" VM-a i sve dalje komande kucaš tu (na VM-u), ne na svom računaru.
+
+> **Napomena:** Ovo uputstvo pretpostavlja **Oracle Linux** (default korisnik `opc`),
+> pošto je to ono što je Oracle Cloud u praksi dodelio pri kreiranju VM-a (vidi
+> [`ORACLE_CLOUD_SETUP.md`](ORACLE_CLOUD_SETUP.md)). Ako si ipak dobio **Ubuntu**
+> image, korisničko ime je `ubuntu` umesto `opc` — svuda u ovom uputstvu zameni
+> `opc@` sa `ubuntu@`, i u Koraku 3 koristi `apt` umesto `dnf` (npr.
+> `sudo apt update && sudo apt upgrade -y` pa
+> `sudo apt install -y docker.io docker-compose-plugin git`).
 
 ---
 
@@ -79,19 +87,10 @@ si sada "unutar" VM-a i sve dalje komande kucaš tu (na VM-u), ne na svom račun
 Kucaj redom (svaku liniju posebno, Enter posle svake), **na VM-u** (u SSH sesiji):
 
 ```bash
-sudo apt update && sudo apt upgrade -y
-```
-(sačekaj da završi, može potrajati minut-dva)
-
-```bash
-sudo apt install -y docker.io docker-compose-plugin git
-```
-
-```bash
+sudo dnf install -y dnf-plugins-core git
+sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 sudo systemctl enable --now docker
-```
-
-```bash
 sudo usermod -aG docker $USER
 ```
 
