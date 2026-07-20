@@ -7,6 +7,7 @@ __pycache__/
 # Local SQLite stats DB (from running service.py outside Docker)
 *.db
 data/
+*.log
 
 # SSH private keys (Oracle Cloud etc.) — never commit
 *.key
@@ -15,6 +16,9 @@ data/
 # Contains live SMTP/Telegram credentials
 config.json
 stabilna verzija/config.json
+
+# Personal deploy notes with real IP/keys/credentials — never commit
+MOJ_DEPLOY.md
 
 # Claude Code local settings
 .claude/settings.local.json
