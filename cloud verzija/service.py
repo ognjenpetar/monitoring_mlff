@@ -283,15 +283,18 @@ def run() -> None:
             devices = fetch_devices(MONITOR_URL)
         except Exception as e:
             log.error("[%s] Greska pri dohvatanju: %s", now_str, e)
-            time.sleep(CHECK_INTERVAL_SEC)
-            continue
+            devices = None
 
-        notifications = run_once(cfg, STATS_DB_PATH, tz, state, devices, now_utc)
-        _dispatch_notifications(cfg, notifications)
+        if devices is not None:
+            notifications = run_once(cfg, STATS_DB_PATH, tz, state, devices, now_utc)
+            _dispatch_notifications(cfg, notifications)
 
-        down_count = sum(1 for d in state.active_devices if not d.is_up)
-        log.info("[%s] UP: %d  DOWN: %d", now_str, len(state.active_devices) - down_count, down_count)
+            down_count = sum(1 for d in state.active_devices if not d.is_up)
+            log.info("[%s] UP: %d  DOWN: %d", now_str, len(state.active_devices) - down_count, down_count)
 
+        # Telegram commands (/live /stat /juce) must keep working even when the
+        # device fetch fails - /stat and /juce only read from stats.db, and a
+        # transient fetch failure shouldn't make the bot go silent.
         if poller:
             try:
                 _poll_telegram_commands(poller, STATS_DB_PATH, tz, state.active_devices, now_utc)
