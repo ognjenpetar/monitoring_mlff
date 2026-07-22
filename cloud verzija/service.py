@@ -16,6 +16,7 @@ Env varijable:
   NOTIFY_UPS_ALERT            true/false (default: true) - UPS/power-loss alarm
   DOWN_THRESHOLD_MINUTES      (default: 60)
   UPS_ALERT_DELAY_MINUTES     (default: 3)
+  UPS_POWER_CONFIRM_MINUTES   (default: 3) - koliko dugo UPS mora biti "nije AC OK" (na bateriji/gresci) pre alarma
   ALERT_REPEAT_MINUTES        (default: 120)
   DAILY_REPORT_TIME           (default: 09:01, format HH:MM)
   TIMEZONE                    (default: Europe/Belgrade)
@@ -36,7 +37,7 @@ import reports
 import stats
 from alerts import AlertTracker
 from notifier import build_notification_text, send_email, send_telegram
-from scraper import Device, fetch_devices
+from scraper import Device, UpsPowerStatus, fetch_all
 from telegram_poll import TelegramCommandPoller
 
 logging.basicConfig(
@@ -51,6 +52,7 @@ CHECK_INTERVAL_SEC = int(os.environ.get("CHECK_INTERVAL_SEC", "60"))
 STATS_DB_PATH = os.environ.get("STATS_DB_PATH", "data/stats.db")
 
 EXCLUDED_HOSTNAMES = {"SCPA1046-L-UPS", "SCPA1046-L-IOL"}
+EXCLUDED_UPS_HOSTNAMES = {"UPS-7"}
 
 
 def _env_bool(name: str, default: bool = True) -> bool:
@@ -77,6 +79,7 @@ def get_config() -> dict:
         "notify_ups_alert": _env_bool("NOTIFY_UPS_ALERT"),
         "down_threshold_minutes": int(os.environ.get("DOWN_THRESHOLD_MINUTES", "60")),
         "ups_alert_delay_minutes": int(os.environ.get("UPS_ALERT_DELAY_MINUTES", "3")),
+        "ups_power_confirm_minutes": int(os.environ.get("UPS_POWER_CONFIRM_MINUTES", "3")),
         "alert_repeat_minutes": int(os.environ.get("ALERT_REPEAT_MINUTES", "120")),
         "daily_report_time": os.environ.get("DAILY_REPORT_TIME", "09:01"),
         "timezone": os.environ.get("TIMEZONE", "Europe/Belgrade"),
@@ -97,6 +100,8 @@ class ServiceState:
     down_since: Dict[str, datetime] = field(default_factory=dict)
     threshold_tracker: AlertTracker = field(default_factory=AlertTracker)
     ups_tracker: AlertTracker = field(default_factory=AlertTracker)
+    ups_not_ok_since: Dict[str, datetime] = field(default_factory=dict)
+    ups_power_tracker: AlertTracker = field(default_factory=AlertTracker)
     first_run: bool = True
     last_report_date: Optional[date] = None
     active_devices: List[Device] = field(default_factory=list)
@@ -209,6 +214,65 @@ def run_once(
     return notifications
 
 
+def check_ups_power(
+    cfg: dict,
+    db_path: str,
+    state: ServiceState,
+    ups_statuses: List[UpsPowerStatus],
+    now_utc: datetime,
+) -> List[Notification]:
+    """Process one poll cycle's UPS AC-power statuses. No network I/O here -
+    ups_statuses are already fetched and now_utc is passed in, so this is
+    fully unit-testable. Mutates `state` in place and returns notifications
+    for the caller to send."""
+    notifications: List[Notification] = []
+    confirm_seconds = cfg["ups_power_confirm_minutes"] * 60
+
+    for status in ups_statuses:
+        if status.hostname in EXCLUDED_UPS_HOSTNAMES:
+            continue
+
+        if status.is_ac_ok:
+            if status.hostname in state.ups_not_ok_since:
+                since = state.ups_not_ok_since.pop(status.hostname)
+                stats.close_ups_power_period(db_path, status.hostname, now_utc)
+                state.ups_power_tracker.reset(status.hostname)
+                duration = (now_utc - since).total_seconds()
+                text = reports.format_ups_power_recovered(status, duration)
+                notifications.extend(_ups_power_notifications(cfg, text))
+            continue
+
+        if status.hostname not in state.ups_not_ok_since:
+            state.ups_not_ok_since[status.hostname] = now_utc
+            stats.open_ups_power_period(db_path, status.hostname, status.status_text, now_utc)
+
+        since = state.ups_not_ok_since[status.hostname]
+        duration = (now_utc - since).total_seconds()
+        if duration < confirm_seconds:
+            continue
+        if not state.ups_power_tracker.should_alert(status.hostname, now_utc, cfg["alert_repeat_minutes"]):
+            continue
+
+        text = reports.format_ups_power_alert(status, duration)
+        notifications.extend(_ups_power_notifications(cfg, text))
+        state.ups_power_tracker.record_sent(status.hostname, now_utc)
+
+    return notifications
+
+
+def _ups_power_notifications(cfg: dict, text: str) -> List[Notification]:
+    """UPS AC-power alerts always go to both channels, regardless of the
+    NOTIFY_EMAIL/NOTIFY_TELEGRAM toggles - this alert is critical enough to
+    always be on (per spec, no separate on/off switch for now)."""
+    subject = text.splitlines()[0]
+    notes = []
+    for addr in cfg["email_recipients"]:
+        notes.append(Notification("email", addr, text, subject))
+    for cid in cfg["telegram_chat_ids"]:
+        notes.append(Notification("telegram", cid, text))
+    return notes
+
+
 def _dispatch_notifications(cfg: dict, notifications: List[Notification]) -> None:
     for n in notifications:
         try:
@@ -280,13 +344,15 @@ def run() -> None:
         now_str = now_utc.strftime("%H:%M:%S")
         cfg = get_config()
         try:
-            devices = fetch_devices(MONITOR_URL)
+            devices, ups_statuses = fetch_all(MONITOR_URL)
         except Exception as e:
             log.error("[%s] Greska pri dohvatanju: %s", now_str, e)
             devices = None
+            ups_statuses = []
 
         if devices is not None:
             notifications = run_once(cfg, STATS_DB_PATH, tz, state, devices, now_utc)
+            notifications += check_ups_power(cfg, STATS_DB_PATH, state, ups_statuses, now_utc)
             _dispatch_notifications(cfg, notifications)
 
             down_count = sum(1 for d in state.active_devices if not d.is_up)

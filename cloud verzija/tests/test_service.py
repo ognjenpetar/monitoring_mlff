@@ -1,17 +1,23 @@
 import os
+import sqlite3
 import tempfile
+from contextlib import closing
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
 
 import stats
-from scraper import Device
-from service import ServiceState, run_once
+from scraper import Device, UpsPowerStatus
+from service import ServiceState, check_ups_power, run_once
 
 
 def make_device(hostname, ip, status):
     return Device(portal_id="1", hostname=hostname, ip=ip, status=status, duration="1h", last_change="")
+
+
+def make_ups_status(hostname, ip, status_text, battery_pct):
+    return UpsPowerStatus(hostname=hostname, ip=ip, status_text=status_text, battery_pct=battery_pct)
 
 
 def base_cfg(**overrides):
@@ -21,6 +27,7 @@ def base_cfg(**overrides):
         "notify_email": False, "notify_telegram": True,
         "notify_threshold_alert": True, "notify_ups_alert": True,
         "down_threshold_minutes": 60, "ups_alert_delay_minutes": 3,
+        "ups_power_confirm_minutes": 3,
         "alert_repeat_minutes": 120, "daily_report_time": "09:01", "timezone": "UTC",
     }
     cfg.update(overrides)
@@ -171,3 +178,88 @@ def test_get_config_reads_new_env_vars(monkeypatch):
     cfg = service.get_config()
     assert cfg["down_threshold_minutes"] == 45
     assert cfg["notify_ups_alert"] is False
+
+
+def test_check_ups_power_no_alert_before_confirm_threshold(db_path):
+    state = ServiceState()
+    t0 = datetime(2026, 7, 22, 10, 0, 0)
+    notes = check_ups_power(base_cfg(), db_path, state, [make_ups_status("UPS-11", "172.23.11.4", "ERR", 87)], t0)
+
+    assert notes == []
+    assert "UPS-11" in state.ups_not_ok_since
+
+
+def test_check_ups_power_alerts_after_confirm_threshold_on_both_channels(db_path):
+    state = ServiceState()
+    cfg = base_cfg(email_recipients=["kolega@example.com"])
+    t0 = datetime(2026, 7, 22, 10, 0, 0)
+    check_ups_power(cfg, db_path, state, [make_ups_status("UPS-11", "172.23.11.4", "ERR", 87)], t0)
+
+    t1 = t0 + timedelta(minutes=3)
+    notes = check_ups_power(cfg, db_path, state, [make_ups_status("UPS-11", "172.23.11.4", "ERR", 87)], t1)
+
+    telegram_notes = [n for n in notes if n.channel == "telegram"]
+    email_notes = [n for n in notes if n.channel == "email"]
+    assert len(telegram_notes) == 1
+    assert len(email_notes) == 1
+    assert "UPS-11" in telegram_notes[0].text
+    assert "UPS-11" in email_notes[0].text
+
+
+def test_check_ups_power_does_not_repeat_before_alert_repeat_minutes(db_path):
+    state = ServiceState()
+    t0 = datetime(2026, 7, 22, 10, 0, 0)
+    check_ups_power(base_cfg(), db_path, state, [make_ups_status("UPS-11", "172.23.11.4", "ERR", 87)], t0)
+    t1 = t0 + timedelta(minutes=3)
+    check_ups_power(base_cfg(), db_path, state, [make_ups_status("UPS-11", "172.23.11.4", "ERR", 87)], t1)
+
+    t2 = t1 + timedelta(minutes=30)  # repeat interval is 120 minutes
+    notes = check_ups_power(base_cfg(), db_path, state, [make_ups_status("UPS-11", "172.23.11.4", "ERR", 87)], t2)
+    assert notes == []
+
+
+def test_check_ups_power_sends_recovery_message_with_total_duration(db_path):
+    state = ServiceState()
+    t0 = datetime(2026, 7, 22, 10, 0, 0)
+    check_ups_power(base_cfg(), db_path, state, [make_ups_status("UPS-11", "172.23.11.4", "ERR", 87)], t0)
+    t1 = t0 + timedelta(minutes=3)
+    check_ups_power(base_cfg(), db_path, state, [make_ups_status("UPS-11", "172.23.11.4", "ERR", 87)], t1)
+
+    t2 = t1 + timedelta(minutes=39)  # total time on battery: 42 minutes since t0
+    notes = check_ups_power(base_cfg(), db_path, state, [make_ups_status("UPS-11", "172.23.11.4", "AC OK", 100)], t2)
+
+    telegram_notes = [n for n in notes if n.channel == "telegram"]
+    assert len(telegram_notes) == 1
+    assert "42m" in telegram_notes[0].text
+    assert "UPS-11" not in state.ups_not_ok_since
+
+
+def test_check_ups_power_ignores_excluded_hostname(db_path):
+    state = ServiceState()
+    t0 = datetime(2026, 7, 22, 10, 0, 0)
+    check_ups_power(base_cfg(), db_path, state, [make_ups_status("UPS-7", "172.23.7.4", "ERR", 0)], t0)
+
+    t1 = t0 + timedelta(minutes=10)
+    notes = check_ups_power(base_cfg(), db_path, state, [make_ups_status("UPS-7", "172.23.7.4", "ERR", 0)], t1)
+
+    assert notes == []
+    assert state.ups_not_ok_since == {}
+
+
+def test_check_ups_power_records_history_period_in_db(db_path):
+    state = ServiceState()
+    t0 = datetime(2026, 7, 22, 10, 0, 0)
+    check_ups_power(base_cfg(), db_path, state, [make_ups_status("UPS-11", "172.23.11.4", "ERR", 87)], t0)
+
+    with closing(sqlite3.connect(db_path)) as conn:
+        row = conn.execute(
+            "SELECT hostname, status_text, end_ts FROM ups_power_periods WHERE hostname = ?", ("UPS-11",)
+        ).fetchone()
+    assert row == ("UPS-11", "ERR", None)
+
+
+def test_get_config_reads_ups_power_confirm_minutes(monkeypatch):
+    monkeypatch.setenv("UPS_POWER_CONFIRM_MINUTES", "5")
+    import service
+    cfg = service.get_config()
+    assert cfg["ups_power_confirm_minutes"] == 5
