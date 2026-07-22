@@ -130,3 +130,17 @@ def test_open_and_close_ups_power_period(db_path):
 def test_close_ups_power_period_is_noop_if_none_open(db_path):
     # Must not raise even when there's nothing open to close.
     stats.close_ups_power_period(db_path, "UPS-99", datetime(2026, 7, 22, 10, 0, 0))
+
+
+def test_open_ups_power_period_is_noop_if_already_open(db_path):
+    t0 = datetime(2026, 7, 22, 10, 0, 0)
+    stats.open_ups_power_period(db_path, "UPS-11", "ERR", t0)
+    t1 = t0 + timedelta(minutes=5)
+    stats.open_ups_power_period(db_path, "UPS-11", "ERR", t1)  # simulates a restart mid-outage
+
+    with closing(sqlite3.connect(db_path)) as conn:
+        rows = conn.execute(
+            "SELECT start_ts FROM ups_power_periods WHERE hostname = ? AND end_ts IS NULL", ("UPS-11",)
+        ).fetchall()
+    assert len(rows) == 1
+    assert rows[0][0] == t0.isoformat()  # the original start_ts is preserved, not overwritten

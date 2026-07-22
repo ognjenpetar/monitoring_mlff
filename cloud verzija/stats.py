@@ -129,13 +129,20 @@ def was_report_sent(db_path: str, report_date: date_cls) -> bool:
 
 
 def open_ups_power_period(db_path: str, hostname: str, status_text: str, ts: datetime) -> None:
-    """Open a new 'not AC OK' period for hostname."""
+    """Open a new 'not AC OK' period for hostname, unless one is already open
+    (e.g. a service restart mid-outage must not create a duplicate open row)."""
     with closing(sqlite3.connect(db_path)) as conn:
-        conn.execute(
-            "INSERT INTO ups_power_periods (hostname, status_text, start_ts, end_ts) VALUES (?, ?, ?, NULL)",
-            (hostname, status_text, ts.isoformat()),
+        cur = conn.execute(
+            "SELECT COUNT(*) FROM ups_power_periods WHERE hostname = ? AND end_ts IS NULL",
+            (hostname,),
         )
-        conn.commit()
+        (count,) = cur.fetchone()
+        if count == 0:
+            conn.execute(
+                "INSERT INTO ups_power_periods (hostname, status_text, start_ts, end_ts) VALUES (?, ?, ?, NULL)",
+                (hostname, status_text, ts.isoformat()),
+            )
+            conn.commit()
 
 
 def close_ups_power_period(db_path: str, hostname: str, ts: datetime) -> None:
