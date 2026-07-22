@@ -78,6 +78,9 @@ whitelistuje (`mlff.sdn.rs` je dostupan samo sa whitelistovanih IP adresa).
 - Dodavanje novih primalaca (email/Telegram) na već pokrenut servis: [`DODAVANJE_PRIMALACA.md`](DODAVANJE_PRIMALACA.md)
 - Detaljna specifikacija svih funkcija (statistika, alarmi, Telegram
   komande `/live` `/stat` `/juce`, dnevni izveštaj): [`docs/superpowers/specs/2026-07-14-mlff-monitoring-v2-design.md`](docs/superpowers/specs/2026-07-14-mlff-monitoring-v2-design.md)
+- Alarm za gubitak mreznog (AC) napajanja UPS uredjaja (baterijski rad), sa
+  potvrdom od 3 minuta i porukom na email i Telegram:
+  [`docs/superpowers/specs/2026-07-22-ups-power-alert-design.md`](docs/superpowers/specs/2026-07-22-ups-power-alert-design.md)
 
 ---
 
