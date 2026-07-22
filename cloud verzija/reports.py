@@ -2,7 +2,7 @@
 
 from typing import Dict, List
 
-from scraper import Device
+from scraper import Device, UpsPowerStatus
 
 
 def format_duration(seconds: float) -> str:
@@ -106,4 +106,28 @@ def format_ups_alert(hostname: str, ip: str, down_duration_seconds: float) -> st
         f"MLFF UPS ALARM - {hostname} moguc gubitak struje na lokaciji\n"
         f"IP: {ip}\n"
         f"Trenutno trajanje: {format_duration(down_duration_seconds)}"
+    )
+
+
+def format_ups_power_alert(status: UpsPowerStatus, duration_seconds: float) -> str:
+    """Format an alarm for a UPS that has lost mains (AC) power."""
+    return (
+        f"MLFF ALARM - UPS uredjaj nije na mreznom napajanju (AC OK)\n\n"
+        f"{status.hostname}\n"
+        f"IP: {status.ip}\n"
+        f"Lokacija: Portal {status.portal_id}\n"
+        f"Status: {status.status_text}\n"
+        f"Baterija: {status.battery_pct}%\n"
+        f"Trenutno trajanje: {format_duration(duration_seconds)}"
+    )
+
+
+def format_ups_power_recovered(status: UpsPowerStatus, duration_seconds: float) -> str:
+    """Format a recovery message for a UPS that has returned to mains (AC) power."""
+    return (
+        f"MLFF - UPS uredjaj vracen na mrezno napajanje\n\n"
+        f"{status.hostname}\n"
+        f"IP: {status.ip}\n"
+        f"Lokacija: Portal {status.portal_id}\n"
+        f"Trajanje ispada: {format_duration(duration_seconds)}"
     )
