@@ -1,5 +1,7 @@
 import os
+import sqlite3
 import tempfile
+from contextlib import closing
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -102,3 +104,29 @@ def test_open_initial_period_is_noop_if_periods_already_exist(db_path):
     result = stats.day_stats(db_path, start, end, t0 + timedelta(hours=1))
     # Second call must be ignored - status stays UP, no DOWN period created.
     assert result["HOST-D"]["downtime_seconds"] == 0
+
+
+def test_open_and_close_ups_power_period(db_path):
+    t0 = datetime(2026, 7, 22, 10, 0, 0)
+    stats.open_ups_power_period(db_path, "UPS-11", "ERR", t0)
+
+    with closing(sqlite3.connect(db_path)) as conn:
+        row = conn.execute(
+            "SELECT hostname, status_text, start_ts, end_ts FROM ups_power_periods WHERE hostname = ?",
+            ("UPS-11",),
+        ).fetchone()
+    assert row == ("UPS-11", "ERR", t0.isoformat(), None)
+
+    t1 = t0 + timedelta(minutes=5)
+    stats.close_ups_power_period(db_path, "UPS-11", t1)
+
+    with closing(sqlite3.connect(db_path)) as conn:
+        row = conn.execute(
+            "SELECT end_ts FROM ups_power_periods WHERE hostname = ?", ("UPS-11",)
+        ).fetchone()
+    assert row[0] == t1.isoformat()
+
+
+def test_close_ups_power_period_is_noop_if_none_open(db_path):
+    # Must not raise even when there's nothing open to close.
+    stats.close_ups_power_period(db_path, "UPS-99", datetime(2026, 7, 22, 10, 0, 0))

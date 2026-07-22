@@ -20,6 +20,15 @@ CREATE INDEX IF NOT EXISTS idx_status_periods_hostname ON status_periods(hostnam
 CREATE TABLE IF NOT EXISTS sent_reports (
     report_date TEXT PRIMARY KEY
 );
+
+CREATE TABLE IF NOT EXISTS ups_power_periods (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hostname TEXT NOT NULL,
+    status_text TEXT NOT NULL,
+    start_ts TEXT NOT NULL,
+    end_ts TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_ups_power_periods_hostname ON ups_power_periods(hostname);
 """
 
 
@@ -117,3 +126,23 @@ def was_report_sent(db_path: str, report_date: date_cls) -> bool:
             "SELECT 1 FROM sent_reports WHERE report_date = ?", (report_date.isoformat(),)
         )
         return cur.fetchone() is not None
+
+
+def open_ups_power_period(db_path: str, hostname: str, status_text: str, ts: datetime) -> None:
+    """Open a new 'not AC OK' period for hostname."""
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.execute(
+            "INSERT INTO ups_power_periods (hostname, status_text, start_ts, end_ts) VALUES (?, ?, ?, NULL)",
+            (hostname, status_text, ts.isoformat()),
+        )
+        conn.commit()
+
+
+def close_ups_power_period(db_path: str, hostname: str, ts: datetime) -> None:
+    """Close the currently-open 'not AC OK' period for hostname, if any."""
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.execute(
+            "UPDATE ups_power_periods SET end_ts = ? WHERE hostname = ? AND end_ts IS NULL",
+            (ts.isoformat(), hostname),
+        )
+        conn.commit()
