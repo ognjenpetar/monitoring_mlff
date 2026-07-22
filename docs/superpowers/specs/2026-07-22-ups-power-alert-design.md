@@ -55,7 +55,17 @@ i odgovarajuću poruku za oporavak ("vratili na mrežno napajanje / AC OK").
    ne oslanjajući se na sajtovu "Runtime" kolonu.
 6. Sačuvaj istoriju perioda u bazi (bez nove komande za pregled za sada).
 7. `UPS-7` je trajno isključen iz alarma (poznat, trajno pokvaren uređaj).
-8. Poštuje `/mute HOSTNAME` i `/mutesve`.
+
+> **Napomena o mute funkciji:** Prvobitno je planirano da ovaj alarm poštuje
+> `/mute`/`/mutesve` (kao i ostali alarmi u v3 Grupa B planu), ali ta
+> infrastruktura (`stats.mute`/`is_muted_effective`, mutes tabela) **ne
+> postoji još na `main`** — v3 Grupa B je samo isplanirana, ne implementirana
+> (parkirana u `.worktrees/mlff-v3`, spec
+> `docs/superpowers/specs/2026-07-21-mlff-monitoring-v3-alerts-design.md`).
+> Ovaj rad se namerno radi PRE v3 Grupe B (korisnikova odluka), pa se gradi na
+> stvarnom stanju `main` grane — bez mute provere za sada. Kad v3 Grupa B
+> kasnije bude implementirana, dodavanje mute provere ovde je mali,
+> jednoredni follow-up (isti obrazac kao ostali alarmi).
 
 ## Van scope-a
 
@@ -152,14 +162,13 @@ petlja, poseban podatak):
     (`stats.open_ups_power_period`).
   - Ako NIJE `is_ac_ok` (bilo prvi put ili već traje): izračunaj trajanje od
     `ups_not_ok_since[hostname]`; ako je ≥ 3 minuta (novi config
-    `UPS_POWER_CONFIRM_MINUTES`, default `3`) I nije mutiran
-    (`stats.is_muted_effective`) I `ups_power_tracker.should_alert(...)` (na
-    `ALERT_REPEAT_MINUTES`) → pošalji alarm (Telegram + email), zabeleži
-    `record_sent`.
+    `UPS_POWER_CONFIRM_MINUTES`, default `3`) I
+    `ups_power_tracker.should_alert(...)` (na `ALERT_REPEAT_MINUTES`) →
+    pošalji alarm (Telegram + email), zabeleži `record_sent`.
 
-Sve provere mute-a koriste postojeći `stats.is_muted_effective(db_path,
-hostname, now_utc)` (bez izmena — hostname `"UPS-11"` je samo još jedan
-string scope, radi bez ikakvih izmena u `stats.py`-jevoj mute logici).
+(Mute provera je namerno izostavljena — vidi napomenu u sekciji "Cilj"
+iznad. Kad v3 Grupa B implementira `stats.is_muted_effective`, dodavanje te
+provere ovde je jednoredna izmena.)
 
 ## 3. Poruke (`cloud verzija/reports.py`)
 
@@ -243,9 +252,8 @@ ne zatreba komanda za pregled).
 - `stats.py`: testovi za `open_ups_power_period`/`close_ups_power_period`.
 - `service.py` (`check_ups_power`): testovi za prvi ciklus (bez alarma pre 3
   min), alarm posle 3 min, ponavljanje na `ALERT_REPEAT_MINUTES`, poruka
-  oporavka i tačno trajanje, `UPS-7` nikad ne generiše alarm, mute suzbija
-  alarm (i pojedinačni i `__ALL__`), i da se šalje i na Telegram i na email
-  kanal.
+  oporavka i tačno trajanje, `UPS-7` nikad ne generiše alarm, i da se šalje i
+  na Telegram i na email kanal.
 - Ručni smoke test sa pravim podacima (kao za v2/v3) — potvrdi da `fetch_all`
   radi na pravom sajtu i da trenutni `AC OK`/`ERR` primeri iz stvarnog
   snapshot-a parsiraju ispravno.
